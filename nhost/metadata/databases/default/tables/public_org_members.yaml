@@ -1,0 +1,61 @@
+table:
+  name: org_members
+  schema: public
+object_relationships:
+  - name: organization
+    using:
+      foreign_key_constraint_on: org_id
+  - name: user
+    using:
+      foreign_key_constraint_on: user_id
+select_permissions:
+  - role: user
+    permission:
+      columns: [id, org_id, user_id, role, created_at]
+      filter:
+        organization:
+          org_members:
+            user_id:
+              _eq: X-Hasura-User-Id
+      # Layer 1: you can list members of an org only if you're a member of
+      # that same org (any role) — so an editor can see who else is on the
+      # team, but has no visibility into a different org's roster.
+insert_permissions:
+  - role: user
+    permission:
+      check:
+        organization:
+          org_members:
+            _and:
+              - user_id:
+                  _eq: X-Hasura-User-Id
+              - role:
+                  _eq: owner
+      columns: [org_id, user_id, role]
+      # Layer 1: only an owner can add members to THEIR org. "can manage
+      # members" is explicitly an owner-only power per the spec (editors
+      # cannot manage members).
+update_permissions:
+  - role: user
+    permission:
+      columns: [role]
+      filter:
+        organization:
+          org_members:
+            _and:
+              - user_id:
+                  _eq: X-Hasura-User-Id
+              - role:
+                  _eq: owner
+      check: null
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        organization:
+          org_members:
+            _and:
+              - user_id:
+                  _eq: X-Hasura-User-Id
+              - role:
+                  _eq: owner

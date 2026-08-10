@@ -1,0 +1,43 @@
+table:
+  name: organizations
+  schema: public
+array_relationships:
+  - name: org_members
+    using:
+      foreign_key_constraint_on:
+        column: org_id
+        table:
+          name: org_members
+          schema: public
+  - name: workflows
+    using:
+      foreign_key_constraint_on:
+        column: org_id
+        table:
+          name: workflows
+          schema: public
+select_permissions:
+  - role: user
+    permission:
+      columns: [id, name, quota_calls_allowed, quota_calls_used, quota_period_start, created_at]
+      filter:
+        org_members:
+          user_id:
+            _eq: X-Hasura-User-Id
+      # Layer 1: you can only ever see an org you are a member of. Role doesn't matter here
+      # (all roles can view org-level quota info), but org membership is mandatory.
+update_permissions:
+  - role: user
+    permission:
+      columns: [name]
+      filter:
+        org_members:
+          _and:
+            - user_id:
+                _eq: X-Hasura-User-Id
+            - role:
+                _eq: owner
+      check: null
+      # Layer 1: only an owner of THIS org can rename it. quota_* columns are
+      # intentionally excluded — those are only mutated server-side by the
+      # triggerWorkflowRun Action using the admin secret.

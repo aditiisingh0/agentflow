@@ -1,0 +1,32 @@
+table:
+  name: step_runs
+  schema: public
+object_relationships:
+  - name: workflow_run
+    using:
+      foreign_key_constraint_on: workflow_run_id
+  - name: workflow_step
+    using:
+      foreign_key_constraint_on: workflow_step_id
+  - name: organization
+    using:
+      foreign_key_constraint_on: org_id
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        [id, workflow_run_id, workflow_step_id, org_id, step_order, type,
+         status, input, output, error, attempt_count, approved_by,
+         approved_at, started_at, finished_at]
+      filter:
+        organization:
+          org_members:
+            user_id:
+              _eq: X-Hasura-User-Id
+      # Same "org membership required" filter, reached through the
+      # denormalized org_id column so the subscription filter stays cheap
+      # (no need to hop workflow_run -> workflow -> organization on every
+      # live update). This is the table the live subscription
+      # (subscribeToStepRuns, filtered by workflow_run_id) reads from — the
+      # row filter is what stops Org B from subscribing to Org A's
+      # step_runs even if they somehow obtained a workflow_run_id.

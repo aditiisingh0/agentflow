@@ -1,0 +1,37 @@
+table:
+  name: workflow_runs
+  schema: public
+object_relationships:
+  - name: workflow
+    using:
+      foreign_key_constraint_on: workflow_id
+  - name: organization
+    using:
+      foreign_key_constraint_on: org_id
+array_relationships:
+  - name: step_runs
+    using:
+      foreign_key_constraint_on:
+        column: workflow_run_id
+        table:
+          name: step_runs
+          schema: public
+select_permissions:
+  - role: user
+    permission:
+      columns:
+        [id, workflow_id, org_id, status, triggered_by, trigger_type,
+         started_at, finished_at, current_step_order, context]
+      filter:
+        organization:
+          org_members:
+            user_id:
+              _eq: X-Hasura-User-Id
+      allow_aggregations: true
+      # No insert/update/delete permissions are defined for the `user` role
+      # here on purpose. A run's only valid entry point is the
+      # triggerWorkflowRun Action, and the only valid mid-flight mutation
+      # (approving a paused step) is the approveStep Action. Both Actions
+      # write with the Hasura admin secret server-side, after doing their
+      # own role checks — so there is no raw-mutation path that could skip
+      # quota checks, retry logic, or the approval-gate role check.

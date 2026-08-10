@@ -1,0 +1,83 @@
+table:
+  name: workflow_triggers
+  schema: public
+object_relationships:
+  - name: workflow
+    using:
+      foreign_key_constraint_on: workflow_id
+select_permissions:
+  - role: user
+    permission:
+      columns: [id, workflow_id, type, config, is_enabled, created_at]
+      filter:
+        workflow:
+          organization:
+            org_members:
+              user_id:
+                _eq: X-Hasura-User-Id
+insert_permissions:
+  - role: user
+    permission:
+      columns: [workflow_id, type, config, is_enabled]
+      # Layer 2: a webhook trigger is an inbound endpoint external systems
+      # can call — that's the highest-risk trigger type, so only an owner
+      # may create one. Manual / scheduled / db_event triggers only need
+      # owner-or-editor (layer 1).
+      check:
+        _and:
+          - workflow:
+              organization:
+                org_members:
+                  _and:
+                    - user_id:
+                        _eq: X-Hasura-User-Id
+                    - role:
+                        _in: [owner, editor]
+          - _or:
+              - type:
+                  _neq: webhook
+              - workflow:
+                  organization:
+                    org_members:
+                      _and:
+                        - user_id:
+                            _eq: X-Hasura-User-Id
+                        - role:
+                            _eq: owner
+update_permissions:
+  - role: user
+    permission:
+      columns: [config, is_enabled]
+      filter:
+        workflow:
+          organization:
+            org_members:
+              _and:
+                - user_id:
+                    _eq: X-Hasura-User-Id
+                - role:
+                    _in: [owner, editor]
+      check:
+        _or:
+          - type:
+              _neq: webhook
+          - workflow:
+              organization:
+                org_members:
+                  _and:
+                    - user_id:
+                        _eq: X-Hasura-User-Id
+                    - role:
+                        _eq: owner
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        workflow:
+          organization:
+            org_members:
+              _and:
+                - user_id:
+                    _eq: X-Hasura-User-Id
+                - role:
+                    _in: [owner, editor]

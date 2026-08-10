@@ -1,0 +1,12 @@
+- name: scheduled_workflow_runner
+  webhook: '{{NHOST_FUNCTIONS_URL}}/scheduledRunner'
+  schedule: '* * * * *' # every minute; the function itself does the cron-match logic
+  include_in_metadata: true
+  payload: {}
+  headers:
+    - name: x-hasura-admin-secret
+      value_from_env: ACTION_SECRET
+  retry_conf:
+    num_retries: 1
+    timeout_seconds: 30
+    tolerance_seconds: 21600

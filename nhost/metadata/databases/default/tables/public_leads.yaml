@@ -1,0 +1,42 @@
+table:
+  name: leads
+  schema: public
+object_relationships:
+  - name: organization
+    using:
+      foreign_key_constraint_on: org_id
+select_permissions:
+  - role: user
+    permission:
+      columns: [id, org_id, email, payload, created_at]
+      filter:
+        organization:
+          org_members:
+            user_id:
+              _eq: X-Hasura-User-Id
+insert_permissions:
+  - role: user
+    permission:
+      columns: [org_id, email, payload]
+      check:
+        organization:
+          org_members:
+            _and:
+              - user_id:
+                  _eq: X-Hasura-User-Id
+              - role:
+                  _in: [owner, editor]
+event_triggers:
+  - name: leads_insert_trigger
+    definition:
+      enable_manual: false
+      insert:
+        columns: '*'
+    webhook: '{{NHOST_FUNCTIONS_URL}}/dbEventInbound'
+    headers:
+      - name: x-hasura-admin-secret
+        value_from_env: ACTION_SECRET
+    retry_conf:
+      num_retries: 3
+      interval_sec: 10
+      timeout_sec: 30

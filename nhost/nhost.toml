@@ -1,0 +1,10 @@
+# nhost project config — points the CLI at the metadata/migrations layout
+# used by this repo (nhost/migrations, nhost/metadata, nhost/functions)
+[hasura]
+version = "v2.40.0"
+
+[postgres]
+version = "15"
+
+[auth]
+version = "0.30.0"

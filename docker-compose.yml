@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: agentflow
+    ports:
+      - '5432:5432'
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./nhost/migrations/default:/docker-entrypoint-initdb.d
+
+  hasura:
+    image: hasura/graphql-engine:v2.40.0
+    depends_on:
+      - postgres
+    restart: always
+    ports:
+      - '8080:8080'
+    environment:
+      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgres@postgres:5432/agentflow
+      HASURA_GRAPHQL_ENABLE_CONSOLE: 'true'
+      HASURA_GRAPHQL_DEV_MODE: 'true'
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-devsecret}
+      ACTION_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-devsecret}
+      HASURA_GRAPHQL_JWT_SECRET: ${HASURA_GRAPHQL_JWT_SECRET}
+      NHOST_FUNCTIONS_URL: http://functions:3001
+    volumes:
+      - ./nhost/metadata:/hasura-metadata
+
+  functions:
+    build: ./nhost/functions
+    restart: always
+    ports:
+      - '3001:3001'
+    environment:
+      HASURA_GRAPHQL_URL: http://hasura:8080/v1/graphql
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-devsecret}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+
+  auth:
+    image: nhost/hasura-auth:0.30.0
+    depends_on:
+      - postgres
+      - hasura
+    restart: always
+    ports:
+      - '4000:4000'
+    environment:
+      AUTH_HOST: 0.0.0.0
+      HASURA_GRAPHQL_DATABASE_URL: postgres://postgres:postgres@postgres:5432/agentflow
+      HASURA_GRAPHQL_GRAPHQL_URL: http://hasura:8080/v1/graphql
+      HASURA_GRAPHQL_JWT_SECRET: ${HASURA_GRAPHQL_JWT_SECRET}
+      HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-devsecret}
+      AUTH_CLIENT_URL: http://localhost:3000
+      AUTH_SMTP_HOST: mailhog
+      AUTH_SMTP_PORT: '1025'
+      AUTH_SMTP_SECURE: 'false'
+      AUTH_SMTP_SENDER: 'test@agentflow.local'
+  mailhog:
+       image: mailhog/mailhog
+       ports:
+          - '8025:8025'
+          - '1025:1025'
+
+volumes:
+  db_data:

@@ -1,0 +1,56 @@
+actions:
+  - name: triggerWorkflowRun
+    definition:
+      kind: synchronous
+      handler: '{{NHOST_FUNCTIONS_URL}}/triggerWorkflowRun'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-admin-secret
+          value_from_env: ACTION_SECRET
+      timeout: 60
+    permissions:
+      - role: user
+      # any authenticated user can CALL this action; the handler itself
+      # verifies org membership + role before doing anything, per the spec:
+      # "role check belongs in the Action handler, not a Hasura permission,
+      # since it's a mid-execution business decision."
+
+  - name: approveStep
+    definition:
+      kind: synchronous
+      handler: '{{NHOST_FUNCTIONS_URL}}/approveStep'
+      forward_client_headers: true
+      headers:
+        - name: x-hasura-admin-secret
+          value_from_env: ACTION_SECRET
+      timeout: 30
+    permissions:
+      - role: user
+
+  - name: dbEventInbound
+    definition:
+      kind: synchronous
+      handler: '{{NHOST_FUNCTIONS_URL}}/dbEventInbound'
+      headers:
+        - name: x-hasura-admin-secret
+          value_from_env: ACTION_SECRET
+      timeout: 30
+    permissions:
+      - role: user
+
+custom_types:
+  enums: []
+  objects:
+    - name: TriggerWorkflowRunOutput
+      fields:
+        - name: workflow_run_id
+          type: uuid!
+        - name: status
+          type: String!
+    - name: ApproveStepOutput
+      fields:
+        - name: step_run_id
+          type: uuid!
+        - name: status
+          type: String!
+  scalars: []

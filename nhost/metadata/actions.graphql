@@ -1,0 +1,15 @@
+type Mutation {
+  triggerWorkflowRun(workflow_id: uuid!): TriggerWorkflowRunOutput
+  approveStep(step_run_id: uuid!, approve: Boolean!): ApproveStepOutput
+  dbEventInbound(table: String!, op: String!, row: json!): TriggerWorkflowRunOutput
+}
+
+type TriggerWorkflowRunOutput {
+  workflow_run_id: uuid!
+  status: String!
+}
+
+type ApproveStepOutput {
+  step_run_id: uuid!
+  status: String!
+}

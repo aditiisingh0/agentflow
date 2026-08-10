@@ -1,0 +1,93 @@
+table:
+  name: workflow_steps
+  schema: public
+object_relationships:
+  - name: workflow
+    using:
+      foreign_key_constraint_on: workflow_id
+select_permissions:
+  - role: user
+    permission:
+      columns: [id, workflow_id, step_order, type, name, config, created_at]
+      filter:
+        workflow:
+          organization:
+            org_members:
+              user_id:
+                _eq: X-Hasura-User-Id
+insert_permissions:
+  - role: user
+    permission:
+      columns: [workflow_id, step_order, type, name, config]
+      # LAYER 1 + LAYER 2 combined:
+      #  - base requirement: caller must be owner/editor in the workflow's org
+      #  - tighter requirement: if the step being inserted is one of the
+      #    "reaches outside the sandbox" types (db_write, notify), the
+      #    caller must specifically be an owner. Editors can add llm_call,
+      #    http_request, conditional_branch, and approval_gate, but not
+      #    db_write or notify.
+      check:
+        _and:
+          - workflow:
+              organization:
+                org_members:
+                  _and:
+                    - user_id:
+                        _eq: X-Hasura-User-Id
+                    - role:
+                        _in: [owner, editor]
+          - _or:
+              - type:
+                  _nin: [db_write, notify]
+              - _and:
+                  - type:
+                      _in: [db_write, notify]
+                  - workflow:
+                      organization:
+                        org_members:
+                          _and:
+                            - user_id:
+                                _eq: X-Hasura-User-Id
+                            - role:
+                                _eq: owner
+update_permissions:
+  - role: user
+    permission:
+      columns: [name, config, step_order]
+      filter:
+        workflow:
+          organization:
+            org_members:
+              _and:
+                - user_id:
+                    _eq: X-Hasura-User-Id
+                - role:
+                    _in: [owner, editor]
+      check:
+        _or:
+          - type:
+              _nin: [db_write, notify]
+          - workflow:
+              organization:
+                org_members:
+                  _and:
+                    - user_id:
+                        _eq: X-Hasura-User-Id
+                    - role:
+                        _eq: owner
+      # note: `type` itself is not in the updatable column list, so this
+      # check only re-validates ownership on edits to existing db_write /
+      # notify steps — you can't sneak a step's type from llm_call to
+      # db_write via update to bypass the insert-time gate.
+delete_permissions:
+  - role: user
+    permission:
+      filter:
+        workflow:
+          organization:
+            org_members:
+              _and:
+                - user_id:
+                    _eq: X-Hasura-User-Id
+                - role:
+                    _in: [owner, editor]

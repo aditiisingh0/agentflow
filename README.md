@@ -16,6 +16,15 @@ GraphQL, with two independent permission layers and live run tracking.
   steps. Falls back to a disclosed stub (labeled `[STUBBED LLM RESPONSE]`,
   with an artificial 800ms delay) if `GROQ_API_KEY` isn't set.
 
+## Live deployment
+
+- **Frontend:** https://agentflow-six-liard.vercel.app
+- **Backend:** Nhost Cloud (subdomain `urxfkigkctgfpkrbpfdv`, region `ap-south-1`)
+- Demo credentials:
+  - `owner1@agentflow.local` — Org A (Acme) owner
+  - `owner2@agentflow.local` — Org B (Globex) owner
+  - Password: `YourPassword123!`
+
 ## Run it locally
 
 ```bash
@@ -52,17 +61,25 @@ whole workflow, per the assignment's explicit allowance for that case.
 
 ## Verification performed
 
-The local stack has been exercised end-to-end:
+The stack has been exercised end-to-end, both locally and on the deployed
+cloud instance:
 
 - Manual Run from the dashboard created a run, executed the LLM stub,
   conditional branch, and HTTP step, then paused at the approval gate.
 - The live `/runs/<id>` view displayed step updates and changed from
   `paused` to `succeeded` after approval.
 - A user from Org B received `403` when attempting to approve an Org A
-  step; an Org A owner could approve it successfully.
-- A secret-protected webhook trigger was invoked successfully and completed
-  after approval.
+  step (verified via a direct GraphQL mutation call against the cloud
+  Hasura endpoint, bypassing the UI entirely); an Org A owner could
+  approve it successfully.
+- A secret-protected webhook trigger was invoked successfully via the
+  deployed Nhost Functions endpoint and completed after approval.
 - `npm run build` completes successfully in `frontend/`.
+- Cross-org isolation confirmed at both the UI layer (an Org B user sees
+  only Org B, with no way to reach Org A's dashboard or workflow data)
+  and the API layer (a direct `approveStep` call against an Org A
+  `step_run_id`, authenticated as an Org B user, was rejected
+  server-side with `"Only an owner in this org can approve this step"`).
 
 ## Deploying the frontend
 
@@ -71,6 +88,17 @@ replaced by publicly reachable Auth, Hasura GraphQL/WS, and Functions URLs.
 Set the corresponding `NEXT_PUBLIC_NHOST_*` / `NEXT_PUBLIC_HASURA_*`
 environment variables in Vercel. `localhost` values in `.env.local` are for
 local development only and will not work from Vercel.
+
+## Notable bug fixed during cloud deployment
+
+The frontend's `workflows` query was firing before the Nhost auth session
+finished restoring on page load/reload, sending the request as the
+`public` (unauthenticated) role — which correctly has no access to
+`workflows` — and surfacing as a confusing
+`field 'workflows' not found in type: 'query_root'` error. Fixed by
+gating the query on `useAuthenticationStatus()` in
+`app/org/[orgId]/page.tsx`, so the query pauses until the session is
+confirmed authenticated.
 
 ## Architecture in one paragraph
 
@@ -150,14 +178,16 @@ recording. The short version of the six-part scenario:
 2. Build "Lead triage": `llm_call` → `conditional_branch` → `http_request`
    / `approval_gate` (seed script has this pre-built).
 3. Trigger it manually (Run button) — and separately via the seeded webhook:
-   `curl -X POST 'http://localhost:3001/webhookTrigger?trigger_id=20000000-0000-0000-0000-000000000002' -H "x-webhook-secret: demo-webhook-secret" -H "content-type: application/json" -d '{"lead":"demo"}'`.
+   - Local: `curl -X POST 'http://localhost:3001/webhookTrigger?trigger_id=20000000-0000-0000-0000-000000000002' -H "x-webhook-secret: demo-webhook-secret" -H "content-type: application/json" -d '{"lead":"demo"}'`
+   - Cloud: `curl -X POST 'https://urxfkigkctgfpkrbpfdv.functions.ap-south-1.nhost.run/v1/webhookTrigger?trigger_id=20000000-0000-0000-0000-000000000002' -H "x-webhook-secret: demo-webhook-secret" -H "content-type: application/json" -d '{"lead":"demo"}'`
 4. Watch `/runs/<run-id>` update live via subscription, including
    `paused` when it hits the approval_gate; approve it as the Org A owner.
 5. Sign in as an Org B user → `/org/<org-a-id>` (typed directly) returns
    nothing — the Hasura select permission filter excludes every row, so
    there's no 403 to probe, just an empty result set.
 6. Attempt `approveStep` on an Org A `step_run_id` as an Org B user →
-   `getMemberRole` returns `null` → 403.
+   `getMemberRole` returns `null` → 403 (`"Only an owner in this org can
+   approve this step"`).
 
 ## Repo layout
 

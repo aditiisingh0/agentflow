@@ -4,7 +4,14 @@
 create extension if not exists pgcrypto;
 
 -- ---------- ENUMS ----------
-create type org_role as enum ('owner', 'editor', 'viewer');
+-- A previous interrupted deployment can leave this first enum behind before
+-- the migration is recorded. Keeping its creation idempotent makes retries
+-- safe on a freshly provisioned cloud database.
+do $$ begin
+  create type org_role as enum ('owner', 'editor', 'viewer');
+exception
+  when duplicate_object then null;
+end $$;
 create type step_type as enum ('llm_call', 'http_request', 'db_write', 'notify', 'conditional_branch', 'approval_gate');
 create type trigger_type as enum ('manual', 'webhook', 'scheduled', 'db_event');
 create type run_status as enum ('pending', 'running', 'paused', 'succeeded', 'failed', 'cancelled');

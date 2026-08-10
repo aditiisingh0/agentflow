@@ -113,7 +113,7 @@ async function executeFrom(runId: string, orgId: string, steps: Step[], startInd
     let error: string | null = null;
 
     try {
-      output = await runStepWithRetry(step, context);
+      output = await runStepWithRetry(step, context, orgId, runId);
     } catch (e: any) {
       error = e.message || String(e);
     }
@@ -140,6 +140,10 @@ async function executeFrom(runId: string, orgId: string, steps: Step[], startInd
 
     // approval_gate: pause here and stop the loop; a later approveStep call resumes
     if (step.type === 'approval_gate') {
+      // The gate itself is now visibly paused as well as the parent run.
+      // This makes the live subscription unambiguous and prevents a normal
+      // completed step from being mistaken for an approval target.
+      await setStepRunStatus(runId, step.id, 'paused');
       await gql(
         `mutation ($id: uuid!) { update_workflow_runs_by_pk(pk_columns: {id: $id}, _set: {status: paused}) { id } }`,
         { id: runId }
@@ -189,11 +193,11 @@ function evalCondition(config: any, lastOutput: any): boolean {
   }
 }
 
-async function runStepWithRetry(step: Step, context: RunContext): Promise<any> {
+async function runStepWithRetry(step: Step, context: RunContext, orgId: string, runId: string): Promise<any> {
   let lastErr: any;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      return await runStep(step, context);
+      return await runStep(step, context, orgId, runId);
     } catch (e) {
       lastErr = e;
       if (attempt < MAX_RETRIES) await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
@@ -202,7 +206,7 @@ async function runStepWithRetry(step: Step, context: RunContext): Promise<any> {
   throw lastErr;
 }
 
-async function runStep(step: Step, context: RunContext): Promise<any> {
+async function runStep(step: Step, context: RunContext, orgId: string, runId: string): Promise<any> {
   switch (step.type) {
     case 'llm_call': {
       const prompt = interpolate(step.config.prompt || '', context);
@@ -225,20 +229,31 @@ async function runStep(step: Step, context: RunContext): Promise<any> {
         `mutation ($orgId: uuid!, $payload: jsonb!) {
           insert_leads_one(object: { org_id: $orgId, email: "workflow@internal", payload: $payload }) { id }
         }`,
-        { orgId: step.config.org_id, payload: context }
+        // Never trust an author-controlled config value for tenancy. The
+        // execution engine owns the run's org ID, so a workflow in Org A
+        // cannot be configured to write into Org B.
+        { orgId, payload: context }
       );
       return { written_id: data.insert_leads_one.id };
     }
     case 'notify': {
-      // Event Trigger style side-effect: log/POST to a webhook (Slack-compatible)
-      if (step.config.target) {
-        await fetch(step.config.target, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: interpolate(step.config.message || 'Workflow notification', context) }),
-        }).catch(() => {}); // best-effort; don't fail the run on notify delivery issues
-      }
-      return { notified: true };
+      // Persist the delivery request. Hasura's notification_events INSERT
+      // Event Trigger delivers it asynchronously, so the workflow engine
+      // stays transactional and the side effect is independently retried.
+      const event = await gql<{ insert_notification_events_one: { id: string } }>(
+        `mutation ($orgId: uuid!, $runId: uuid!, $target: String!, $message: String!) {
+          insert_notification_events_one(object: {
+            org_id: $orgId, workflow_run_id: $runId, target: $target, message: $message
+          }) { id }
+        }`,
+        {
+          orgId,
+          runId,
+          target: step.config.target || '',
+          message: interpolate(step.config.message || 'Workflow notification', context),
+        }
+      );
+      return { notification_event_id: event.insert_notification_events_one.id, queued: true };
     }
     case 'conditional_branch': {
       // evaluated against the PREVIOUS step's output, passed in as context

@@ -25,15 +25,18 @@ export default async function handler(req: Request, res: Response) {
   const stepRunData = await gql<{
     step_runs_by_pk: {
       id: string;
+      type: string;
       status: string;
       org_id: string;
       workflow_run_id: string;
+      workflow_run: { status: string };
       workflow_step: { config: any };
     } | null;
   }>(
     `query ($id: uuid!) {
       step_runs_by_pk(id: $id) {
-        id status org_id workflow_run_id
+        id type status org_id workflow_run_id
+        workflow_run { status }
         workflow_step { config }
       }
     }`,
@@ -41,7 +44,12 @@ export default async function handler(req: Request, res: Response) {
   );
   const stepRun = stepRunData.step_runs_by_pk;
   if (!stepRun) return res.status(404).json({ message: 'step_run not found' });
-  if (stepRun.status !== 'succeeded' && stepRun.status !== 'paused') {
+  // This Action is deliberately narrow: it must never be usable to resume a
+  // run from an arbitrary completed step supplied by ID.
+  if (stepRun.type !== 'approval_gate') {
+    return res.status(400).json({ message: 'Only approval_gate steps can be approved' });
+  }
+  if (stepRun.workflow_run.status !== 'paused' || (stepRun.status !== 'paused' && stepRun.status !== 'succeeded')) {
     return res.status(400).json({ message: 'This step is not awaiting approval' });
   }
 
@@ -53,17 +61,18 @@ export default async function handler(req: Request, res: Response) {
 
   if (!approve) {
     await gql(
-      `mutation ($runId: uuid!, $userId: uuid!) {
+      `mutation ($runId: uuid!, $stepRunId: uuid!) {
         update_workflow_runs_by_pk(pk_columns: {id: $runId}, _set: {status: cancelled, finished_at: "now()"}) { id }
+        update_step_runs_by_pk(pk_columns: {id: $stepRunId}, _set: {status: failed, error: "Rejected by approver", finished_at: "now()"}) { id }
       }`,
-      { runId: stepRun.workflow_run_id, userId }
+      { runId: stepRun.workflow_run_id, stepRunId: step_run_id }
     );
     return res.json({ step_run_id, status: 'cancelled' });
   }
 
   await gql(
-    `mutation ($id: uuid!, $userId: uuid!) {
-      update_step_runs_by_pk(pk_columns: {id: $id}, _set: {approved_by: $userId, approved_at: "now()"}) { id }
+      `mutation ($id: uuid!, $userId: uuid!) {
+        update_step_runs_by_pk(pk_columns: {id: $id}, _set: {status: succeeded, approved_by: $userId, approved_at: "now()"}) { id }
     }`,
     { id: step_run_id, userId }
   );

@@ -39,6 +39,7 @@ services:
     environment:
       HASURA_GRAPHQL_URL: http://hasura:8080/v1/graphql
       HASURA_GRAPHQL_ADMIN_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-devsecret}
+      ACTION_SECRET: ${HASURA_GRAPHQL_ADMIN_SECRET:-devsecret}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
 
   auth:

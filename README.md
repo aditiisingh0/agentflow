@@ -88,6 +88,11 @@ two permission layers described below. The subscription
 `step_runs`, which the engine (`nhost/functions/_lib/engine.ts`) updates
 step-by-step as it executes.
 
+The Functions service verifies `x-hasura-admin-secret` on Action, cron, and
+database-event routes. This prevents a caller from bypassing Hasura and
+forging an Action body with arbitrary `session_variables`; only the webhook
+route is publicly callable, and it requires its individual webhook secret.
+
 ## The two permission layers
 
 **Layer 1 — org + role scoping.** Every select/insert/update/delete
@@ -123,6 +128,8 @@ admin secret after verifying the caller's role in code.
   incremented once the run reaches `succeeded` (`engine.ts`,
   `executeFrom`'s final branch) — a run that fails partway doesn't consume
   quota, per "on completion."
+- `notify` writes a `notification_events` row; its Hasura Event Trigger
+  delivers the Slack/email-compatible POST independently, with three retries.
 - Webhook trigger: `POST /webhookTrigger/:trigger_id` with header
   `x-webhook-secret` matching `workflow_triggers.config.secret`.
 - Scheduled trigger: Hasura cron trigger polls `scheduledRunner` every
@@ -142,8 +149,8 @@ recording. The short version of the six-part scenario:
 1. Sign in as Org A owner → `/org/<org-a-id>` shows Org A's workflows only.
 2. Build "Lead triage": `llm_call` → `conditional_branch` → `http_request`
    / `approval_gate` (seed script has this pre-built).
-3. Trigger it manually (Run button) — and separately via
-   `curl -X POST localhost:3001/webhookTrigger/<trigger-id> -H "x-webhook-secret: ..."`.
+3. Trigger it manually (Run button) — and separately via the seeded webhook:
+   `curl -X POST http://localhost:3001/webhookTrigger/20000000-0000-0000-0000-000000000002 -H "x-webhook-secret: demo-webhook-secret" -H "content-type: application/json" -d '{"lead":"demo"}'`.
 4. Watch `/runs/<run-id>` update live via subscription, including
    `paused` when it hits the approval_gate; approve it as the Org A owner.
 5. Sign in as an Org B user → `/org/<org-a-id>` (typed directly) returns

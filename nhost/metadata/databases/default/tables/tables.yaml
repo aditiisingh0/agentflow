@@ -6,4 +6,6 @@
 - '!include public_workflow_runs.yaml'
 - '!include public_step_runs.yaml'
 - '!include public_leads.yaml'
+- '!include public_notification_events.yaml'
+- '!include public_org_usage_this_month.yaml'
 - '!include auth_users.yaml'

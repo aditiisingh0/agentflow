@@ -54,10 +54,11 @@ check by mutating the row directly.
 ## Approval-gate pause/resume implementation
 
 When the engine (`engine.ts`, `executeFrom`) reaches a step whose `type`
-is `approval_gate`, it writes the step's own `step_run` as `succeeded`
-(the gate step itself "ran" — it just means "wait here"), sets
-`workflow_runs.status = paused`, and returns without advancing `i`. No
-timer, no polling loop, no held connection — the function simply exits.
+is `approval_gate`, it marks both that `step_run` and its parent
+`workflow_run` as `paused`, then returns without advancing `i`. This makes
+the gate explicit in the live subscription and means the approval Action
+can reject IDs for ordinary completed steps. No timer, polling loop, or
+held connection is involved — the function simply exits.
 
 Resuming is a distinct entry point (`resumeRun` in `engine.ts`, called
 from `approveStep.ts`) that re-fetches the run's `current_step_order` and

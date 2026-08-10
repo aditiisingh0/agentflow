@@ -29,5 +29,7 @@ insert into workflow_steps (workflow_id, step_order, type, name, config) values
   ('10000000-0000-0000-0000-000000000001', 3, 'approval_gate', 'Manager review',
    '{"required_role": "owner"}');
 
-insert into workflow_triggers (workflow_id, type, config) values
-  ('10000000-0000-0000-0000-000000000001', 'manual', '{}');
+insert into workflow_triggers (id, workflow_id, type, config) values
+  ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'manual', '{}'),
+  ('20000000-0000-0000-0000-000000000002', '10000000-0000-0000-0000-000000000001', 'webhook',
+   '{"secret": "demo-webhook-secret"}');

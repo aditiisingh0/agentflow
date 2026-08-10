@@ -1,5 +1,6 @@
 import type { Request, Response } from 'express';
 import { gql } from './_lib/db';
+import { requireInternalCaller } from './_lib/internal';
 
 /**
  * Hasura Event Trigger handler for a queued notify step. Delivery is kept
@@ -7,6 +8,7 @@ import { gql } from './_lib/db';
  * or the rest of the workflow.
  */
 export default async function handler(req: Request, res: Response) {
+  if (!requireInternalCaller(req, res)) return;
   const event = req.body.event;
   const row = event?.data?.new;
   if (!row) return res.status(400).json({ message: 'Missing notification event' });

@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { gql } from './_lib/db';
 import { startRun } from './_lib/engine';
+import { requireInternalCaller } from './_lib/internal';
 
 // Minimal cron matcher — supports the standard 5-field syntax well enough
 // for demo schedules like "*/5 * * * *". Swap for `cron-parser` in a real
@@ -24,7 +25,8 @@ function cronDue(expr: string, now: Date): boolean {
   );
 }
 
-export default async function handler(_req: Request, res: Response) {
+export default async function handler(req: Request, res: Response) {
+  if (!requireInternalCaller(req, res)) return;
   const now = new Date();
 
   const data = await gql<{

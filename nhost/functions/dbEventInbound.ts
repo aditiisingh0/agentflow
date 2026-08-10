@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { gql } from './_lib/db';
 import { startRun } from './_lib/engine';
+import { requireInternalCaller } from './_lib/internal';
 
 /**
  * Fired by the Hasura Event Trigger on `leads` INSERT (see
@@ -10,6 +11,7 @@ import { startRun } from './_lib/engine';
  * table auto-starts a run" trigger type.
  */
 export default async function handler(req: Request, res: Response) {
+  if (!requireInternalCaller(req, res)) return;
   const event = req.body.event;
   const table = req.body.table?.name;
   const op = event?.op;

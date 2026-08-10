@@ -37,6 +37,7 @@ app.post('/deliverNotification', requireInternalCaller, deliverNotification);
 
 // External inbound webhook (unauthenticated except for the trigger secret)
 app.post('/webhookTrigger/:trigger_id', webhookTrigger);
+app.post('/webhookTrigger', webhookTrigger);
 
 const port = process.env.PORT || 3001;
 app.listen(port, () => console.log(`AgentFlow functions listening on :${port}`));

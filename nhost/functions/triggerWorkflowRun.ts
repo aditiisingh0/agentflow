@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { gql, getMemberRole, isAtLeast } from './_lib/db';
 import { startRun } from './_lib/engine';
+import { requireInternalCaller } from './_lib/internal';
 
 /**
  * Hasura Action handler for `triggerWorkflowRun(workflow_id: uuid!)`.
@@ -16,6 +17,7 @@ import { startRun } from './_lib/engine';
  *  4. Return { workflow_run_id, status } to the client
  */
 export default async function handler(req: Request, res: Response) {
+  if (!requireInternalCaller(req, res)) return;
   const sessionVars = req.body.session_variables || {};
   const userId = sessionVars['x-hasura-user-id'];
   const { workflow_id } = req.body.input;

@@ -6,7 +6,7 @@ actions:
       forward_client_headers: true
       headers:
         - name: x-hasura-admin-secret
-          value_from_env: ACTION_SECRET
+          value_from_env: NHOST_ADMIN_SECRET
       timeout: 60
     permissions:
       - role: user
@@ -22,7 +22,7 @@ actions:
       forward_client_headers: true
       headers:
         - name: x-hasura-admin-secret
-          value_from_env: ACTION_SECRET
+          value_from_env: NHOST_ADMIN_SECRET
       timeout: 30
     permissions:
       - role: user
@@ -33,7 +33,7 @@ actions:
       handler: '{{NHOST_FUNCTIONS_URL}}/dbEventInbound'
       headers:
         - name: x-hasura-admin-secret
-          value_from_env: ACTION_SECRET
+          value_from_env: NHOST_ADMIN_SECRET
       timeout: 30
     permissions:
       - role: user

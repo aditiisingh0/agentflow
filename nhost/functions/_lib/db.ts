@@ -5,8 +5,11 @@
 // logic (quota, retries, approval-gate role checks) that a static Hasura
 // permission can't express.
 
-const HASURA_URL = process.env.HASURA_GRAPHQL_URL || 'http://localhost:8080/v1/graphql';
-const ADMIN_SECRET = process.env.HASURA_GRAPHQL_ADMIN_SECRET || '';
+// Nhost Cloud injects NHOST_GRAPHQL_URL and NHOST_ADMIN_SECRET. Keep the
+// local Docker variables as fallbacks so the project remains runnable with
+// `docker compose up` too.
+const HASURA_URL = process.env.NHOST_GRAPHQL_URL || process.env.HASURA_GRAPHQL_URL || 'http://localhost:8080/v1/graphql';
+const ADMIN_SECRET = process.env.NHOST_ADMIN_SECRET || process.env.HASURA_GRAPHQL_ADMIN_SECRET || '';
 
 export async function gql<T = any>(query: string, variables: Record<string, any> = {}): Promise<T> {
   const res = await fetch(HASURA_URL, {

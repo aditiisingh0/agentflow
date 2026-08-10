@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import { gql, getMemberRole, isAtLeast } from './_lib/db';
 import { resumeRun } from './_lib/engine';
+import { requireInternalCaller } from './_lib/internal';
 
 /**
  * Hasura Action handler for `approveStep(step_run_id: uuid!, approve: Boolean!)`.
@@ -14,6 +15,7 @@ import { resumeRun } from './_lib/engine';
  * way, so the role check lives right next to it here.
  */
 export default async function handler(req: Request, res: Response) {
+  if (!requireInternalCaller(req, res)) return;
   const sessionVars = req.body.session_variables || {};
   const userId = sessionVars['x-hasura-user-id'];
   const { step_run_id, approve } = req.body.input;

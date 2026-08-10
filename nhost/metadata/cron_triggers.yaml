@@ -5,7 +5,7 @@
   payload: {}
   headers:
     - name: x-hasura-admin-secret
-      value_from_env: ACTION_SECRET
+      value_from_env: NHOST_ADMIN_SECRET
   retry_conf:
     num_retries: 1
     timeout_seconds: 30

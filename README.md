@@ -130,7 +130,7 @@ admin secret after verifying the caller's role in code.
   quota, per "on completion."
 - `notify` writes a `notification_events` row; its Hasura Event Trigger
   delivers the Slack/email-compatible POST independently, with three retries.
-- Webhook trigger: `POST /webhookTrigger/:trigger_id` with header
+- Webhook trigger: `POST /webhookTrigger?trigger_id=<trigger-id>` with header
   `x-webhook-secret` matching `workflow_triggers.config.secret`.
 - Scheduled trigger: Hasura cron trigger polls `scheduledRunner` every
   minute; it matches each enabled `scheduled` trigger's `config.cron`
@@ -150,7 +150,7 @@ recording. The short version of the six-part scenario:
 2. Build "Lead triage": `llm_call` → `conditional_branch` → `http_request`
    / `approval_gate` (seed script has this pre-built).
 3. Trigger it manually (Run button) — and separately via the seeded webhook:
-   `curl -X POST http://localhost:3001/webhookTrigger/20000000-0000-0000-0000-000000000002 -H "x-webhook-secret: demo-webhook-secret" -H "content-type: application/json" -d '{"lead":"demo"}'`.
+   `curl -X POST 'http://localhost:3001/webhookTrigger?trigger_id=20000000-0000-0000-0000-000000000002' -H "x-webhook-secret: demo-webhook-secret" -H "content-type: application/json" -d '{"lead":"demo"}'`.
 4. Watch `/runs/<run-id>` update live via subscription, including
    `paused` when it hits the approval_gate; approve it as the Org A owner.
 5. Sign in as an Org B user → `/org/<org-a-id>` (typed directly) returns

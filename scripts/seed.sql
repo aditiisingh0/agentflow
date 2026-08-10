@@ -10,14 +10,14 @@ insert into organizations (id, name, quota_calls_allowed) values
 
 -- membership
 insert into org_members (org_id, user_id, role) values
-  ('00000000-0000-0000-0000-00000000000a', 'f5443991-95ff-4e30-ac73-15a13400cc9e', 'owner'),
-  ('00000000-0000-0000-0000-00000000000b', 'bf3fcd2c-5e0d-447f-971d-a924b32352dd', 'owner');
+  ('00000000-0000-0000-0000-00000000000a', '7240ee3d-189c-4ee0-8316-0abb8cd81020', 'owner'),
+  ('00000000-0000-0000-0000-00000000000b', '7fc49fc0-1133-4d74-897f-47e515b0e2a3', 'owner');
 
 -- sample Org A workflow: llm_call -> conditional_branch -> approval_gate
 insert into workflows (id, org_id, name, description, created_by) values
   ('10000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-00000000000a',
    'Lead triage', 'Summarize a lead, branch on sentiment, gate on approval',
-   'f5443991-95ff-4e30-ac73-15a13400cc9e');
+   '7240ee3d-189c-4ee0-8316-0abb8cd81020');
 
 insert into workflow_steps (workflow_id, step_order, type, name, config) values
   ('10000000-0000-0000-0000-000000000001', 0, 'llm_call', 'Summarize lead',

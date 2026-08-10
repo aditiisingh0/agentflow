@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useMutation } from 'urql';
-import { useNhostClient, useUserId } from '@nhost/nextjs';
+import { useNhostClient, useUserId, useAuthenticationStatus } from '@nhost/nextjs';
 import Link from 'next/link';
 import { GET_ORG_WORKFLOWS, TRIGGER_WORKFLOW_RUN } from '../../../lib/queries';
 
@@ -16,9 +16,12 @@ const STATUS_CLASS: Record<string, string> = {
 
 export default function OrgDashboard({ params }: { params: { orgId: string } }) {
   const userId = useUserId();
+  const { isAuthenticated, isLoading: authLoading } = useAuthenticationStatus();
+
   const [{ data, fetching, error }, refetch] = useQuery({
     query: GET_ORG_WORKFLOWS,
     variables: { orgId: params.orgId },
+    pause: authLoading || !isAuthenticated,
   });
   const [, triggerRun] = useMutation(TRIGGER_WORKFLOW_RUN);
 
@@ -34,6 +37,14 @@ export default function OrgDashboard({ params }: { params: { orgId: string } }) 
     }
     const runId = result.data?.triggerWorkflowRun?.workflow_run_id;
     if (runId) window.location.href = `/runs/${runId}`;
+  }
+
+  if (authLoading) {
+    return (
+      <div className="container">
+        <p style={{ color: 'var(--text-dim)' }}>Loading…</p>
+      </div>
+    );
   }
 
   return (

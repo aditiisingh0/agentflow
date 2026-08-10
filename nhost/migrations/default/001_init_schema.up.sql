@@ -12,10 +12,26 @@ do $$ begin
 exception
   when duplicate_object then null;
 end $$;
-create type step_type as enum ('llm_call', 'http_request', 'db_write', 'notify', 'conditional_branch', 'approval_gate');
-create type trigger_type as enum ('manual', 'webhook', 'scheduled', 'db_event');
-create type run_status as enum ('pending', 'running', 'paused', 'succeeded', 'failed', 'cancelled');
-create type step_run_status as enum ('pending', 'running', 'succeeded', 'failed', 'paused', 'skipped');
+do $$ begin
+  create type step_type as enum ('llm_call', 'http_request', 'db_write', 'notify', 'conditional_branch', 'approval_gate');
+exception
+  when duplicate_object then null;
+end $$;
+do $$ begin
+  create type trigger_type as enum ('manual', 'webhook', 'scheduled', 'db_event');
+exception
+  when duplicate_object then null;
+end $$;
+do $$ begin
+  create type run_status as enum ('pending', 'running', 'paused', 'succeeded', 'failed', 'cancelled');
+exception
+  when duplicate_object then null;
+end $$;
+do $$ begin
+  create type step_run_status as enum ('pending', 'running', 'succeeded', 'failed', 'paused', 'skipped');
+exception
+  when duplicate_object then null;
+end $$;
 
 -- ---------- ORGANIZATIONS ----------
 create table organizations (

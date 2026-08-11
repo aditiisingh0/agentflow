@@ -11,7 +11,8 @@ GraphQL, with two independent permission layers and live run tracking.
 - **Functions** (Node/Express, TypeScript) — the Action handlers and
   execution engine in `nhost/functions/`
 - **Frontend** — Next.js (App Router) + urql (GraphQL over HTTP + WS) in
-  `frontend/`
+  `frontend/`, including workflow creation/editing, live run progress, and
+  inline sign-in feedback
 - **LLM** — Groq's OpenAI-compatible chat completion API for `llm_call`
   steps. Falls back to a disclosed stub (labeled `[STUBBED LLM RESPONSE]`,
   with an artificial 800ms delay) if `GROQ_API_KEY` isn't set.
@@ -70,16 +71,19 @@ cloud instance:
   `paused` to `succeeded` after approval.
 - A user from Org B received `403` when attempting to approve an Org A
   step (verified via a direct GraphQL mutation call against the cloud
-  Hasura endpoint, bypassing the UI entirely); an Org A owner could
-  approve it successfully.
+  Hasura endpoint, bypassing the UI entirely); an Org A owner approved it
+  successfully, and the handler enforces the configured owner/editor rule.
 - A secret-protected webhook trigger was invoked successfully via the
   deployed Nhost Functions endpoint and completed after approval.
+- Workflow editing was verified: existing definitions load pre-filled, and
+  workflow details, step configuration/order, and triggers can be saved.
 - `npm run build` completes successfully in `frontend/`.
 - Cross-org isolation confirmed at both the UI layer (an Org B user sees
-  only Org B, with no way to reach Org A's dashboard or workflow data)
+  only Org B, with no way to reach Org A's dashboard, workflow data, or
+  workflow editor)
   and the API layer (a direct `approveStep` call against an Org A
   `step_run_id`, authenticated as an Org B user, was rejected
-  server-side with `"Only an owner in this org can approve this step"`).
+  server-side with `"Only an owner/editor in this org can approve this step"`).
 
 ## Deploying the frontend
 
@@ -145,12 +149,15 @@ via Hasura's permission system, not application code — see
 decision (does resuming the run), not a plain row read/write, so the role
 check lives in `nhost/functions/approveStep.ts` instead. `step_runs` has no
 `user`-role update permission at all; the Action does the check with the
-admin secret after verifying the caller's role in code.
+admin secret after verifying the caller is an owner/editor in the workflow's
+organization.
 
 ## Retry / quota / trigger notes
 
 - `llm_call` and `http_request` retry up to 2 extra times (3 attempts
-  total) with linear backoff — `runStepWithRetry` in `engine.ts`.
+  total) with linear backoff — `runStepWithRetry` in `engine.ts`. The
+  `attempt_count` is incremented for every actual attempt, so the live UI
+  shows retry counts accurately.
 - Quota is checked *before* a run starts (`triggerWorkflowRun.ts`,
   `webhookTrigger.ts`, `scheduledRunner.ts`, `dbEventInbound.ts`) and
   incremented once the run reaches `succeeded` (`engine.ts`,
@@ -181,13 +188,14 @@ recording. The short version of the six-part scenario:
    - Local: `curl -X POST 'http://localhost:3001/webhookTrigger?trigger_id=20000000-0000-0000-0000-000000000002' -H "x-webhook-secret: demo-webhook-secret" -H "content-type: application/json" -d '{"lead":"demo"}'`
    - Cloud: `curl -X POST 'https://urxfkigkctgfpkrbpfdv.functions.ap-south-1.nhost.run/v1/webhookTrigger?trigger_id=20000000-0000-0000-0000-000000000002' -H "x-webhook-secret: demo-webhook-secret" -H "content-type: application/json" -d '{"lead":"demo"}'`
 4. Watch `/runs/<run-id>` update live via subscription, including
-   `paused` when it hits the approval_gate; approve it as the Org A owner.
+   `paused` when it hits the approval_gate; approve it as an Org A
+   owner/editor.
 5. Sign in as an Org B user → `/org/<org-a-id>` (typed directly) returns
    nothing — the Hasura select permission filter excludes every row, so
    there's no 403 to probe, just an empty result set.
 6. Attempt `approveStep` on an Org A `step_run_id` as an Org B user →
    `getMemberRole` returns `null` → 403 (`"Only an owner in this org can
-   approve this step"`).
+   owner/editor in this org can approve this step"`).
 
 ## Repo layout
 
@@ -206,8 +214,10 @@ nhost/
     scheduledRunner.ts / dbEventInbound.ts
 frontend/
   app/page.tsx                        # sign in, org picker
-  app/org/[orgId]/page.tsx            # dashboard: workflows, quota, run button
+  app/org/[orgId]/page.tsx            # dashboard: workflows, quota, run/edit buttons
   app/org/[orgId]/workflows/new/      # builder: steps + trigger
+  app/org/[orgId]/workflows/[workflowId]/edit/
+                                      # editor: existing workflow definitions
   app/runs/[runId]/page.tsx           # live subscription view + approve UI
 docs/writeup.md                       # ~1 page schema/permission write-up
 scripts/seed.sql                      # two-org demo data

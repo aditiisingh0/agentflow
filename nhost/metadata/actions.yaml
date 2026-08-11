@@ -2,7 +2,7 @@ actions:
   - name: triggerWorkflowRun
     definition:
       kind: synchronous
-      handler: '{{NHOST_FUNCTIONS_URL}}/triggerWorkflowRun'
+      handler: '{{AGENTFLOW_FUNCTIONS_URL}}/triggerWorkflowRun'
       forward_client_headers: true
       headers:
         - name: x-hasura-admin-secret
@@ -18,7 +18,7 @@ actions:
   - name: approveStep
     definition:
       kind: synchronous
-      handler: '{{NHOST_FUNCTIONS_URL}}/approveStep'
+      handler: '{{AGENTFLOW_FUNCTIONS_URL}}/approveStep'
       forward_client_headers: true
       headers:
         - name: x-hasura-admin-secret
@@ -30,7 +30,7 @@ actions:
   - name: dbEventInbound
     definition:
       kind: synchronous
-      handler: '{{NHOST_FUNCTIONS_URL}}/dbEventInbound'
+      handler: '{{AGENTFLOW_FUNCTIONS_URL}}/dbEventInbound'
       headers:
         - name: x-hasura-admin-secret
           value_from_env: NHOST_ADMIN_SECRET

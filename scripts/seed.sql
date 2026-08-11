@@ -27,7 +27,7 @@ insert into workflow_steps (workflow_id, step_order, type, name, config) values
   ('10000000-0000-0000-0000-000000000001', 2, 'http_request', 'Notify sales API',
    '{"url": "https://httpbin.org/post", "method": "POST", "body": {"lead": "hot"}}'),
   ('10000000-0000-0000-0000-000000000001', 3, 'approval_gate', 'Manager review',
-   '{"required_role": "owner"}');
+   '{"required_role": "editor"}');
 
 insert into workflow_triggers (id, workflow_id, type, config) values
   ('20000000-0000-0000-0000-000000000001', '10000000-0000-0000-0000-000000000001', 'manual', '{}'),

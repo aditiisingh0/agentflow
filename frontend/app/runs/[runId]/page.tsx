@@ -1,7 +1,7 @@
 'use client';
 
-import { useSubscription, useMutation } from 'urql';
-import { SUBSCRIBE_STEP_RUNS, APPROVE_STEP } from '../../../lib/queries';
+import { useQuery, useSubscription, useMutation } from 'urql';
+import { SUBSCRIBE_STEP_RUNS, APPROVE_STEP, GET_WORKFLOW_RUN_ACCESS } from '../../../lib/queries';
 
 const STATUS_CLASS: Record<string, string> = {
   succeeded: 'status-succeeded',
@@ -19,9 +19,15 @@ const BADGE_CLASS: Record<string, string> = {
 };
 
 export default function RunView({ params }: { params: { runId: string } }) {
+  const [{ data: accessData, fetching: checkingAccess, error: accessError }] = useQuery({
+    query: GET_WORKFLOW_RUN_ACCESS,
+    variables: { runId: params.runId },
+  });
+  const hasAccess = Boolean(accessData?.workflow_runs_by_pk);
   const [{ data, error }] = useSubscription({
     query: SUBSCRIBE_STEP_RUNS,
     variables: { runId: params.runId },
+    pause: !hasAccess,
   });
   const [, approve] = useMutation(APPROVE_STEP);
 
@@ -35,6 +41,11 @@ export default function RunView({ params }: { params: { runId: string } }) {
   async function handleApprove(stepRunId: string, decision: boolean) {
     const result = await approve({ stepRunId, approve: decision });
     if (result.error) alert(result.error.message);
+  }
+
+  if (checkingAccess) return <main className="container">Loading…</main>;
+  if (accessError || !hasAccess) {
+    return <main className="container"><h1>Access denied</h1><p>You do not have access to this workflow run.</p></main>;
   }
 
   return (

@@ -28,6 +28,11 @@ export default function OrgDashboard({ params }: { params: { orgId: string } }) 
   const myRole = data?.org_members?.find((m: any) => m.user_id === userId)?.role;
   const isViewer = myRole === 'viewer';
   const org = data?.organizations_by_pk;
+  // A direct URL to another organization's dashboard returns no rows because
+  // Hasura's org-membership filter is applied before this component receives
+  // data. Treat that as an explicit access-denied state, rather than falling
+  // through to the empty dashboard (which used to expose authoring controls).
+  const hasOrgAccess = Boolean(org && myRole);
 
   async function handleRun(workflowId: string) {
     const result = await triggerRun({ workflowId });
@@ -43,6 +48,21 @@ export default function OrgDashboard({ params }: { params: { orgId: string } }) 
     return (
       <div className="container">
         <p style={{ color: 'var(--text-dim)' }}>Loading…</p>
+      </div>
+    );
+  }
+
+  if (!fetching && !error && !hasOrgAccess) {
+    return (
+      <div className="container" style={{ maxWidth: 560 }}>
+        <div className="eyebrow">Organization</div>
+        <h1>Access denied</h1>
+        <p style={{ color: 'var(--text-dim)' }}>
+          You don&apos;t have access to this organization.
+        </p>
+        <Link href="/" className="btn" style={{ marginTop: 12 }}>
+          Back to your organizations
+        </Link>
       </div>
     );
   }

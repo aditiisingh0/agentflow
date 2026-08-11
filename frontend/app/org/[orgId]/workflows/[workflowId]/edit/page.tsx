@@ -177,7 +177,7 @@ export default function EditWorkflow({ params }: { params: { orgId: string; work
     }
   }
 
-  if (authLoading || fetching || !loaded) return <div className="container">Loading…</div>;
+  if (authLoading || fetching) return <div className="container">Loading…</div>;
   if (error || !workflow || workflow.org_id !== params.orgId) {
     return (
       <div className="container" style={{ maxWidth: 560 }}>
@@ -188,6 +188,7 @@ export default function EditWorkflow({ params }: { params: { orgId: string; work
       </div>
     );
   }
+  if (!loaded) return <div className="container">Loading…</div>;
 
   return (
     <div className="container">

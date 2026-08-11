@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, useSubscription, useMutation } from 'urql';
+import { useAuthenticationStatus } from '@nhost/nextjs';
 import { SUBSCRIBE_STEP_RUNS, APPROVE_STEP, GET_WORKFLOW_RUN_ACCESS } from '../../../lib/queries';
 
 const STATUS_CLASS: Record<string, string> = {
@@ -19,9 +20,15 @@ const BADGE_CLASS: Record<string, string> = {
 };
 
 export default function RunView({ params }: { params: { runId: string } }) {
+  // Nhost restores a persisted session asynchronously. Do not issue this
+  // permission-sensitive query as an anonymous request during that window:
+  // Hasura correctly returns null, and URQL would cache that result as a
+  // permanent-looking access denial.
+  const { isAuthenticated, isLoading: authLoading } = useAuthenticationStatus();
   const [{ data: accessData, fetching: checkingAccess, error: accessError }] = useQuery({
     query: GET_WORKFLOW_RUN_ACCESS,
     variables: { runId: params.runId },
+    pause: authLoading || !isAuthenticated,
   });
   const hasAccess = Boolean(accessData?.workflow_runs_by_pk);
   const [{ data, error }] = useSubscription({
@@ -43,7 +50,7 @@ export default function RunView({ params }: { params: { runId: string } }) {
     if (result.error) alert(result.error.message);
   }
 
-  if (checkingAccess) return <main className="container">Loading…</main>;
+  if (authLoading || checkingAccess) return <main className="container">Loading…</main>;
   if (accessError || !hasAccess) {
     return <main className="container"><h1>Access denied</h1><p>You do not have access to this workflow run.</p></main>;
   }

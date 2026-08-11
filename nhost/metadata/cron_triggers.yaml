@@ -1,5 +1,5 @@
 - name: scheduled_workflow_runner
-  webhook: '{{NHOST_FUNCTIONS_URL}}/scheduledRunner'
+  webhook: '{{AGENTFLOW_FUNCTIONS_URL}}/scheduledRunner'
   schedule: '* * * * *' # every minute; the function itself does the cron-match logic
   include_in_metadata: true
   payload: {}

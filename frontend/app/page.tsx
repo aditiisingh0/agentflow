@@ -20,7 +20,7 @@ export default function Home() {
 
   const { isAuthenticated, isLoading } = useAuthenticationStatus();
   const user = useUserData();
-  const { signInEmailPassword } = useSignInEmailPassword();
+  const { signInEmailPassword, isLoading: isSigningIn, isError: signInFailed } = useSignInEmailPassword();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -36,7 +36,18 @@ export default function Home() {
         <div className="card" style={{ display: 'grid', gap: 10, marginTop: 16 }}>
           <input placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
           <input placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <button className="btn btn-primary" onClick={() => signInEmailPassword(email, password)}>Sign in</button>
+          {signInFailed && (
+            <p style={{ color: 'var(--error)', margin: 0, fontSize: 13 }}>
+              Invalid email or password. Please try again.
+            </p>
+          )}
+          <button
+            className="btn btn-primary"
+            onClick={() => signInEmailPassword(email, password)}
+            disabled={isSigningIn || !email || !password}
+          >
+            {isSigningIn ? 'Signing in…' : 'Sign in'}
+          </button>
         </div>
       </div>
     );

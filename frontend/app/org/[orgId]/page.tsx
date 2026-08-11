@@ -121,9 +121,14 @@ export default function OrgDashboard({ params }: { params: { orgId: string } }) 
                     </Link>
                   )}
                   {!isViewer && (
-                    <button className="btn btn-primary" onClick={() => handleRun(wf.id)}>
-                      Run
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <Link href={`/org/${params.orgId}/workflows/${wf.id}/edit`} className="btn">
+                        Edit
+                      </Link>
+                      <button className="btn btn-primary" onClick={() => handleRun(wf.id)}>
+                        Run
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>

@@ -114,6 +114,27 @@ async function executeFrom(runId: string, orgId: string, steps: Step[], startInd
 
   while (i < steps.length) {
     const step = steps[i];
+
+    // An approval gate is a state transition, not work that needs to run.
+    // Persist its paused state before any generic "running"/"succeeded"
+    // writes. This is important because action functions can be terminated
+    // between awaits; the durable state must always be pausable first.
+    if (step.type === 'approval_gate') {
+      const output = { awaiting_approval: true };
+      context[step.step_order] = output;
+      await setStepRunStatus(runId, step.id, 'paused', { output });
+      await gql(
+        `mutation ($id: uuid!, $order: Int!, $ctx: jsonb!) {
+          update_workflow_runs_by_pk(
+            pk_columns: {id: $id}
+            _set: {status: paused, current_step_order: $order, context: $ctx}
+          ) { id }
+        }`,
+        { id: runId, order: step.step_order, ctx: context }
+      );
+      return;
+    }
+
     // NOTE: attempt_count is now incremented inside runStepWithRetry, once
     // per actual attempt (including retries) — not once per step here.
     // This just marks the step as running; see runStepWithRetry below.
@@ -147,19 +168,6 @@ async function executeFrom(runId: string, orgId: string, steps: Step[], startInd
       }`,
       { id: runId, order: step.step_order, ctx: context }
     );
-
-    // approval_gate: pause here and stop the loop; a later approveStep call resumes
-    if (step.type === 'approval_gate') {
-      // The gate itself is now visibly paused as well as the parent run.
-      // This makes the live subscription unambiguous and prevents a normal
-      // completed step from being mistaken for an approval target.
-      await setStepRunStatus(runId, step.id, 'paused');
-      await gql(
-        `mutation ($id: uuid!) { update_workflow_runs_by_pk(pk_columns: {id: $id}, _set: {status: paused}) { id } }`,
-        { id: runId }
-      );
-      return;
-    }
 
     // conditional_branch: jump to the configured step_order instead of i+1
     if (step.type === 'conditional_branch') {

@@ -32,7 +32,7 @@ event_triggers:
       enable_manual: false
       insert:
         columns: '*'
-    webhook: '{{NHOST_FUNCTIONS_URL}}/dbEventInbound'
+    webhook: '{{AGENTFLOW_FUNCTIONS_URL}}/dbEventInbound'
     headers:
       - name: x-hasura-admin-secret
         value_from_env: NHOST_ADMIN_SECRET

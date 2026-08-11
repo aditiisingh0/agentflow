@@ -107,7 +107,10 @@ async function executeFrom(runId: string, orgId: string, steps: Step[], startInd
 
   while (i < steps.length) {
     const step = steps[i];
-    await setStepRunStatus(runId, step.id, 'running', { attempt_count_incr: true });
+    // NOTE: attempt_count is now incremented inside runStepWithRetry, once
+    // per actual attempt (including retries) — not once per step here.
+    // This just marks the step as running; see runStepWithRetry below.
+    await setStepRunStatus(runId, step.id, 'running');
 
     let output: any;
     let error: string | null = null;
@@ -196,6 +199,12 @@ function evalCondition(config: any, lastOutput: any): boolean {
 async function runStepWithRetry(step: Step, context: RunContext, orgId: string, runId: string): Promise<any> {
   let lastErr: any;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    // Increment attempt_count on EVERY attempt (including the first), so
+    // a step that fails twice and succeeds on the 3rd try ends with
+    // attempt_count = 3, and the UI's "retried {attempt_count - 1}×" shows
+    // "retried 2×" — matching what actually happened, instead of always
+    // showing 1 regardless of how many retries occurred.
+    await setStepRunStatus(runId, step.id, 'running', { attempt_count_incr: true });
     try {
       return await runStep(step, context, orgId, runId);
     } catch (e) {

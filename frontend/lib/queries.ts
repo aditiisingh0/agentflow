@@ -46,6 +46,72 @@ export const UPSERT_WORKFLOW = `
   }
 `;
 
+export const GET_WORKFLOW_FOR_EDIT = `
+  query WorkflowForEdit($workflowId: uuid!) {
+    workflows_by_pk(id: $workflowId) {
+      id
+      org_id
+      name
+      description
+      is_active
+      workflow_steps(order_by: { step_order: asc }) {
+        id step_order type name config
+      }
+      workflow_triggers(order_by: { created_at: asc }) {
+        id type config is_enabled
+      }
+      workflow_runs(where: { status: { _in: [running, paused] } }, limit: 1) {
+        id
+      }
+    }
+  }
+`;
+
+export const UPDATE_WORKFLOW = `
+  mutation UpdateWorkflow($id: uuid!, $changes: workflows_set_input!) {
+    update_workflows_by_pk(pk_columns: { id: $id }, _set: $changes) { id }
+  }
+`;
+
+export const SHIFT_WORKFLOW_STEPS = `
+  mutation ShiftWorkflowSteps($workflowId: uuid!) {
+    update_workflow_steps(
+      where: { workflow_id: { _eq: $workflowId } }
+      _inc: { step_order: 10000 }
+    ) { affected_rows }
+  }
+`;
+
+export const UPDATE_WORKFLOW_STEP = `
+  mutation UpdateWorkflowStep($id: uuid!, $changes: workflow_steps_set_input!) {
+    update_workflow_steps_by_pk(pk_columns: { id: $id }, _set: $changes) { id }
+  }
+`;
+
+export const INSERT_WORKFLOW_STEPS = `
+  mutation InsertWorkflowSteps($steps: [workflow_steps_insert_input!]!) {
+    insert_workflow_steps(objects: $steps) { returning { id step_order } }
+  }
+`;
+
+export const UPDATE_WORKFLOW_TRIGGER = `
+  mutation UpdateWorkflowTrigger($id: uuid!, $changes: workflow_triggers_set_input!) {
+    update_workflow_triggers_by_pk(pk_columns: { id: $id }, _set: $changes) { id }
+  }
+`;
+
+export const INSERT_WORKFLOW_TRIGGERS = `
+  mutation InsertWorkflowTriggers($triggers: [workflow_triggers_insert_input!]!) {
+    insert_workflow_triggers(objects: $triggers) { returning { id } }
+  }
+`;
+
+export const DELETE_WORKFLOW_TRIGGERS = `
+  mutation DeleteWorkflowTriggers($ids: [uuid!]!) {
+    delete_workflow_triggers(where: { id: { _in: $ids } }) { affected_rows }
+  }
+`;
+
 export const TRIGGER_WORKFLOW_RUN = `
   mutation TriggerRun($workflowId: uuid!) {
     triggerWorkflowRun(workflow_id: $workflowId) {

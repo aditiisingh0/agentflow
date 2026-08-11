@@ -70,7 +70,14 @@ export async function startRun(opts: {
     }
   );
 
-  await executeFrom(runId, orgId, steps, 0, seedContext);
+  // Fire-and-forget: execution can take longer than the platform's
+  // function timeout (external LLM/HTTP calls), so we don't await it here.
+  // The caller gets the run ID immediately and the live subscription
+  // (SUBSCRIBE_STEP_RUNS) shows progress as executeFrom updates rows.
+  executeFrom(runId, orgId, steps, 0, seedContext).catch((e) => {
+    console.error(`startRun: background execution failed for run ${runId}:`, e);
+  });
+
   return runId;
 }
 

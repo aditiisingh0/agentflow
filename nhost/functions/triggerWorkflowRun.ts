@@ -13,7 +13,7 @@ import { requireInternalCaller } from './_lib/internal';
  * Steps, in order (each one maps directly to a spec requirement):
  *  1. Verify caller is owner/editor in the workflow's org      (role gate)
  *  2. Check the org's quota isn't exhausted                    (quota gate)
- *  3. Delegate to startRun() to create + execute the run
+ *  3. Delegate to startRun() to create the run and kick off execution
  *  4. Return { workflow_run_id, status } to the client
  */
 export default async function handler(req: Request, res: Response) {
@@ -59,7 +59,11 @@ export default async function handler(req: Request, res: Response) {
     return res.status(429).json({ message: 'Organization quota exhausted for this period' });
   }
 
-  // 3) create + execute
+  // 3) create the run and kick off execution. startRun creates the
+  // workflow_run + step_run rows and returns immediately — actual step
+  // execution happens in the background (fire-and-forget inside
+  // engine.ts) so this handler doesn't block on external LLM/HTTP calls
+  // that could exceed the platform's function timeout.
   const runId = await startRun({
     workflowId: workflow.id,
     orgId: workflow.org_id,
@@ -67,10 +71,5 @@ export default async function handler(req: Request, res: Response) {
     triggerType: 'manual',
   });
 
-  const runData = await gql<{ workflow_runs_by_pk: { status: string } }>(
-    `query ($id: uuid!) { workflow_runs_by_pk(id: $id) { status } }`,
-    { id: runId }
-  );
-
-  return res.json({ workflow_run_id: runId, status: runData.workflow_runs_by_pk.status });
+  return res.json({ workflow_run_id: runId, status: 'running' });
 }

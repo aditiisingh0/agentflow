@@ -25,7 +25,7 @@ insert into workflow_steps (workflow_id, step_order, type, name, config) values
   ('10000000-0000-0000-0000-000000000001', 1, 'conditional_branch', 'Branch on sentiment',
    '{"condition": "output.result contains ''positive''", "on_true_skip_to": 2, "on_false_skip_to": 3}'),
   ('10000000-0000-0000-0000-000000000001', 2, 'http_request', 'Notify sales API',
-   '{"url": "https://httpbin.org/post", "method": "POST", "body": {"lead": "hot"}}'),
+   '{"url": "https://postman-echo.com/post", "method": "POST", "body": {"lead": "hot"}}'),
   ('10000000-0000-0000-0000-000000000001', 3, 'approval_gate', 'Manager review',
    '{"required_role": "editor"}');
 

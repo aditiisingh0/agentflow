@@ -230,11 +230,25 @@ async function runStep(step: Step, context: RunContext, orgId: string, runId: st
       return { result: text };
     }
     case 'http_request': {
-      const res = await fetch(step.config.url, {
-        method: step.config.method || 'GET',
-        headers: { 'Content-Type': 'application/json', ...(step.config.headers || {}) },
-        body: step.config.body ? JSON.stringify(interpolateObj(step.config.body, context)) : undefined,
-      });
+      // Bound each external call so an unavailable API cannot leave a run
+      // stuck in `running` forever. The existing retry policy retries this
+      // timeout just like every other transient request error.
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8_000);
+      let res: Response;
+      try {
+        res = await fetch(step.config.url, {
+          method: step.config.method || 'GET',
+          headers: { 'Content-Type': 'application/json', ...(step.config.headers || {}) },
+          body: step.config.body ? JSON.stringify(interpolateObj(step.config.body, context)) : undefined,
+          signal: controller.signal,
+        });
+      } catch (error: any) {
+        if (error?.name === 'AbortError') throw new Error('http_request timed out after 8 seconds');
+        throw error;
+      } finally {
+        clearTimeout(timeout);
+      }
       if (!res.ok) throw new Error(`http_request failed: ${res.status}`);
       const body = await res.json().catch(() => ({}));
       return { status: res.status, body };

@@ -130,6 +130,17 @@ export const APPROVE_STEP = `
   }
 `;
 
+// RLS returns null for a run outside the signed-in user's organization. The
+// run page uses this before opening its live subscription, so a guessed URL
+// produces a clean access-denied screen instead of a transport error.
+export const GET_WORKFLOW_RUN_ACCESS = `
+  query WorkflowRunAccess($runId: uuid!) {
+    workflow_runs_by_pk(id: $runId) {
+      id
+    }
+  }
+`;
+
 // live per-step progress for a single run, including the paused state
 export const SUBSCRIBE_STEP_RUNS = `
   subscription StepRuns($runId: uuid!) {
